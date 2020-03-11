@@ -1,14 +1,14 @@
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Django REST with React</title>
-</head>
-<body>
-<div id="App">
-    <!-- React will load here -->
-</div>
-</body>
-{% load static %}
-<script src="{% static "frontend/airpnp/src/index.js" %}"></script>
-</html>
+{% extends "base.html" %}
+
+{% block content %}
+<h1> Air PnP</h1>
+
+<ol>
+  <li><a href="{% url 'User' %}">Users</a></li>
+  <li><a href="{% url 'Bathrooms' %}">Bathrooms</a></li>
+  <li><a href="{% url 'Invoices' %}">Invoices</a></li>
+</ol>
+
+
+
+{% endblock %}

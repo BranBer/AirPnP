@@ -24,7 +24,7 @@ class Payment_Info(models.Model):
     
 class Invoices(models.Model):
     amount = models.DecimalField(max_digits = 6, decimal_places = 2)
-    date = models.DateField(null = False, blank = False)
+    date = models.DateTimeField(null = False, blank = False)
     payer = models.ForeignKey(Payment_Info, related_name = 'payer', on_delete = models.DO_NOTHING)
     payee = models.ForeignKey(Payment_Info, related_name = 'payee', on_delete = models.DO_NOTHING)
 
