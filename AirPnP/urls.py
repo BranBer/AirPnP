@@ -36,5 +36,6 @@ urlpatterns = [
      path('Bathrooms/Ratings/API/<int:user>/<int:bathroom_id>/<int:score>/<str:title>/<str:description>/', PostToRatingsAPI),
     path('Invoices', Create_Invoices, name = 'Invoices'),
     path('Invoices/API', Invoices_API, name = 'Invoices_API'),
-    path('Invoices/API/<amount>/<int:year>/<int:month>/<int:day>/<int:hour>/<int:minute>/<int:payer>/<int:payee>/', PostToInvoicesAPI)
+    path('Invoices/API/<amount>/<int:year>/<int:month>/<int:day>/<int:hour>/<int:minute>/<int:payer>/<int:payee>/', PostToInvoicesAPI),
+    path('User/Addresses/API/bycoords/<lat>/<lon>/', GetNearbyBathroomsAPI),
 ]

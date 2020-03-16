@@ -7,6 +7,8 @@ from django.template import Template, Context, loader
 from Air_PnP.serializers import *
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
+from django.db.models.query import QuerySet
+#from django.db.models import When
 
 import datetime
 # Create your views here.
@@ -131,7 +133,8 @@ def Bathrooms_API(request):
 
     elif request.method == 'POST':
         data = JSONParser().parse(request)
-        serializer = Bathrooms_Serializer(data=data)
+        #serializer = Bathrooms_Serializer(data=data)
+        serializer = Bathrooms_Serializer(data = data)
         if serializer.is_valid():
             serializer.save()
             return JsonResponse(serializer.data, status=201)
@@ -271,3 +274,30 @@ def PostToInvoicesAPI(request, amount, year, month, day, hour, minute, payer, pa
             serializer.save()
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
+
+def GetNearbyBathroomsAPI(request, lat, lon):
+    lat = float(lat)
+    lon = float(lon)
+
+    minLat = lat - 1.00000
+    maxLat = lat + 1.00000
+
+    minLon = lon - 1.00000
+    maxLon = lon + 1.00000
+
+    if request.method == 'GET':
+        addresses = Addresses.objects.filter(latitude__range = (minLat, maxLat), longitude__range = (minLon, maxLon))
+        serializer = Addresses_Serializer(addresses, many=True)
+        return JsonResponse(serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = Addresses_Serializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+
+
+
+

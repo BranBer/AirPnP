@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db.models.query import QuerySet
 
 class Users(models.Model):
     username = models.CharField(max_length = 20, null = False, blank = False, unique = True)
@@ -11,7 +12,7 @@ class Users(models.Model):
 class Addresses(models.Model):
     user = models.ManyToManyField(Users)
     address_line1 = models.CharField(max_length = 45, null = False, blank = False)
-    address_line2 = models.CharField(max_length = 45, null = False, blank = False)
+    address_line2 = models.CharField(max_length = 45, null = True, blank = True)
     city = models.CharField(max_length = 20, null = False, blank = False)
     state = models.CharField(max_length = 2, null = False, blank = False)
     zip = models.IntegerField(null = False, blank = False)
@@ -29,7 +30,7 @@ class Invoices(models.Model):
     payee = models.ForeignKey(Payment_Info, related_name = 'payee', on_delete = models.DO_NOTHING)
 
 class Bathrooms(models.Model):
-    address_id = models.ForeignKey(Addresses, on_delete = models.CASCADE)
+    address_id = models.ForeignKey(Addresses, on_delete = models.CASCADE, related_name = "bathrooms")
     has_shower = models.BooleanField(null = True)
     has_bath = models.BooleanField(null = True)
     has_sink = models.BooleanField(null = True)
@@ -39,7 +40,7 @@ class Bathrooms(models.Model):
 
 class Ratings(models.Model):
     user = models.ForeignKey(Users, on_delete = models.CASCADE)
-    bathroom_id = models.ForeignKey(Bathrooms, on_delete = models.CASCADE)
+    bathroom_id = models.ForeignKey(Bathrooms, on_delete = models.CASCADE, related_name = "ratings")
     score = models.IntegerField(default = 0, validators=[MaxValueValidator(5), MinValueValidator(0)])
     title = models.CharField(max_length = 30, blank = True)
     description = models.CharField(max_length = 200)
