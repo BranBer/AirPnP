@@ -264,8 +264,7 @@ def PostToInvoicesAPI(request, amount, year, month, day, hour, minute, payer, pa
 
     if request.method == 'GET':
         invoice = Invoices.objects.all()
-        serializer = Invoices_Serializ
-        r(invoice, many=True)
+        serializer = Invoices_Serializer(invoice, many=True)
         return JsonResponse(serializer.data, safe=False)
 
     elif request.method == 'POST':
@@ -304,6 +303,26 @@ def GetNearbyBathroomsAPI(request, lat, lon):
 def top5BathroomsInCity(request, city, state):
     a = Addresses.objects.filter(city__iexact = city, state__iexact = state).values('id')
     b = Bathrooms.objects.filter(address_id__in = a).values('id')
+    r = Ratings.objects.filter(bathroom_id__in = b).values('bathroom_id').annotate(avsc = Avg('score')).order_by('-avsc')[:5]    
+    r_id = r.values('bathroom_id')  
+    
+    top5b = Bathrooms.objects.filter(id__in = r_id) 
+
+    if request.method == 'GET':
+        #top5b = Bathrooms.objects.all()
+        serializer = Bathrooms_Serializer(top5b, many=True)
+        return JsonResponse(serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = Bathrooms_Serializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+
+def top5Bathrooms(request):
+    b = Bathrooms.objects.all().values('id')
     r = Ratings.objects.filter(bathroom_id__in = b).values('bathroom_id').annotate(avsc = Avg('score')).order_by('-avsc')[:5]    
     r_id = r.values('bathroom_id')  
     

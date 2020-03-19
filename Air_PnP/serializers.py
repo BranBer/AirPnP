@@ -25,7 +25,7 @@ class Bathrooms_Serializer(serializers.ModelSerializer):
     class Meta:
         model = Bathrooms
         depth = 1
-        fields = ['id', 'address_id', 'address_line', 'has_shower', 'has_bath', 'has_sink', 'has_fem_products', 'num_of_toilets', 'ratings']
+        fields = ['id', 'address_id', 'has_shower', 'has_bath', 'has_sink', 'has_fem_products', 'num_of_toilets', 'ratings']
 
 class Addresses_Serializer(serializers.ModelSerializer):
     bathrooms = Bathrooms_Serializer(many = True, read_only = True)
