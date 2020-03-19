@@ -3,14 +3,14 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db.models.query import QuerySet
 
 class Users(models.Model):
-    username = models.CharField(max_length = 20, null = False, blank = False, unique = True)
+    username = models.CharField(max_length = 20, null = False, blank = False, unique = True, primary_key=True)
     personalEmail = models.CharField(max_length = 30, unique = True)
     password = models.CharField(max_length = 20, null = False, blank = False)
     first_name = models.CharField(max_length = 20, null = False, blank = False)
     last_name = models.CharField(max_length = 20, null = False, blank = False)
     
 class Addresses(models.Model):
-    user = models.ManyToManyField(Users)
+    user = models.ManyToManyField(Users, related_name='addresses')
     address_line1 = models.CharField(max_length = 45, null = False, blank = False)
     address_line2 = models.CharField(max_length = 45, null = True, blank = True)
     city = models.CharField(max_length = 20, null = False, blank = False)
@@ -37,6 +37,7 @@ class Bathrooms(models.Model):
     has_fem_products = models.BooleanField(null = True)
     has_toilet_paper = models.BooleanField(null = True)
     num_of_toilets = models.IntegerField(default = 0)
+
 
 class Ratings(models.Model):
     user = models.ForeignKey(Users, on_delete = models.CASCADE)

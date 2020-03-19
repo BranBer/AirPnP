@@ -8,6 +8,7 @@ from Air_PnP.serializers import *
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 from django.db.models.query import QuerySet
+from django.db.models import Avg
 #from django.db.models import When
 
 import datetime
@@ -284,6 +285,8 @@ def GetNearbyBathroomsAPI(request, lat, lon):
 
     minLon = lon - 1.00000
     maxLon = lon + 1.00000
+ 
+    #addresses = Addresses.objects.filter(latitude__range = (minLat, maxLat), longitude__range = (minLon, maxLon))
 
     if request.method == 'GET':
         addresses = Addresses.objects.filter(latitude__range = (minLat, maxLat), longitude__range = (minLon, maxLon))
@@ -297,6 +300,28 @@ def GetNearbyBathroomsAPI(request, lat, lon):
             serializer.save()
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
+
+def top5BathroomsInCity(request, city, state):
+    a = Addresses.objects.filter(city__iexact = city, state__iexact = state).values('id')
+    b = Bathrooms.objects.filter(address_id__in = a).values('id')
+    r = Ratings.objects.filter(bathroom_id__in = b).values('bathroom_id').annotate(avsc = Avg('score')).order_by('-avsc')[:5]    
+    r_id = r.values('bathroom_id')  
+    
+    top5b = Bathrooms.objects.filter(id__in = r_id) 
+
+    if request.method == 'GET':
+        #top5b = Bathrooms.objects.all()
+        serializer = Bathrooms_Serializer(top5b, many=True)
+        return JsonResponse(serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = Bathrooms_Serializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+    
 
 
 

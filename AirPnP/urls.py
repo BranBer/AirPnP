@@ -38,4 +38,5 @@ urlpatterns = [
     path('Invoices/API', Invoices_API, name = 'Invoices_API'),
     path('Invoices/API/<amount>/<int:year>/<int:month>/<int:day>/<int:hour>/<int:minute>/<int:payer>/<int:payee>/', PostToInvoicesAPI),
     path('User/Addresses/API/bycoords/<lat>/<lon>/', GetNearbyBathroomsAPI),
+    path('User/Addresses/API/top5incity/<str:city>/<str:state>/', top5BathroomsInCity),
 ]
