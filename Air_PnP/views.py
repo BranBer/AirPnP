@@ -9,9 +9,10 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 from django.db.models.query import QuerySet
 from django.db.models import Avg
+
 #from django.db.models import When
 
-import datetime
+from datetime import datetime
 # Create your views here.
 
 def Home_View(request):
@@ -67,7 +68,6 @@ def Create_Ratings(request):
         post = form.save()
 
     return render (request, 'rating_form.html' , {'form': form, 'form_title': 'Enter User Rating'})
-
 
 #Rest API Views
 def Users_API(request):
@@ -250,16 +250,14 @@ def PostToRatingsAPI(request, user, bathroom_id, score, title, description):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
-def PostToInvoicesAPI(request, amount, year, month, day, hour, minute, payer, payee):
-    date = datetime.datetime(year = year, month = month, day = day, hour = hour, minute = minute)
-    
+def PostToInvoicesAPI(request, amount, payer, payee):
     payerUser = Users.objects.get(pk = payer)
     payeeUser = Users.objects.get(pk = payee)
 
     payerInfo = Payment_Info.objects.get(user = payerUser)
     payeeInfo = Payment_Info.objects.get(user = payeeUser)
 
-    invoice = Invoices(amount = amount, date = date, payer = payerInfo, payee = payeeInfo)
+    invoice = Invoices(amount = amount, payer = payerInfo, payee = payeeInfo)
     invoice.save()
 
     if request.method == 'GET':
@@ -341,6 +339,40 @@ def top5Bathrooms(request):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
     
+def getUser(request, usern):
+    user = Users.objects.filter(username__iexact = usern)
+
+    if request.method == 'GET':
+        serializer = Users_Serializer(user, many=True)
+        return JsonResponse(serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = Users_Serializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+
+def usernamePassword(request, usern, passw):
+    user = Users.objects.filter(username__exact = usern, password__exact = passw)
+
+    if request.method == 'GET':
+        serializer = Users_Serializer(user, many=True)
+        return JsonResponse(serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = Users_Serializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+
+
+
+
+
 
 
 

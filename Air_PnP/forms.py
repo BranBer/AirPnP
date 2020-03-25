@@ -22,7 +22,7 @@ class Payment_Info_Form(ModelForm):
 class Invoices_Form(ModelForm):
     class Meta:
         model = Invoices
-        fields = ['amount', 'date', 'payer', 'payee']
+        fields = ['amount', 'payer', 'payee']
 
 class Bathrooms_Form(ModelForm):
     class Meta:

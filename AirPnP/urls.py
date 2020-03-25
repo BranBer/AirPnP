@@ -36,8 +36,10 @@ urlpatterns = [
      path('Bathrooms/Ratings/API/<str:user>/<int:bathroom_id>/<int:score>/<str:title>/<str:description>/', PostToRatingsAPI),
     path('Invoices', Create_Invoices, name = 'Invoices'),
     path('Invoices/API', Invoices_API, name = 'Invoices_API'),
-    path('Invoices/API/<amount>/<int:year>/<int:month>/<int:day>/<int:hour>/<int:minute>/<str:payer>/<str:payee>/', PostToInvoicesAPI),
+    path('Invoices/API/<amount>/<str:payer>/<str:payee>/', PostToInvoicesAPI),
     path('User/Addresses/API/bycoords/<lat>/<lon>/', GetNearbyBathroomsAPI),
     path('User/Addresses/API/top5incity/<str:city>/<str:state>/', top5BathroomsInCity),
     path('User/Addresses/API/top5all/', top5Bathrooms),
+    path('User/API/getuser/<str:usern>/', getUser),
+    path('User/API/login/<str:usern>/<str:passw>/', usernamePassword)
 ]

@@ -11,17 +11,15 @@ class Invoices_Serializer(serializers.ModelSerializer):
         model = Invoices
         fields = ['amount', 'date', 'payer', 'payee']
 
-
 class Ratings_Serializer(serializers.ModelSerializer):
     class Meta:
         model = Ratings
         fields = ['user', 'bathroom_id','score','title','description']
 
 class Bathrooms_Serializer(serializers.ModelSerializer):
-    ratings = Ratings_Serializer(many = True, read_only = True)  
-    #address_line = serializers.CharField(read_only = True, source = "addresses.address_line1")
-    #addresses = Addresses_Serializer(many = True, read_only = True)     
-    #addresses = Addresses_Serializer(read_only = True)
+    ratings = Ratings_Serializer(many = True, read_only = True)
+    #avgRatings = Bathroom_Score_Avg_Serializer(many = True, read_only = True)
+
     class Meta:
         model = Bathrooms
         depth = 1
@@ -38,3 +36,11 @@ class Users_Serializer(serializers.ModelSerializer):
     class Meta:
         model = Users
         fields = ['username', 'personalEmail', 'password', 'first_name', 'last_name', 'addresses']
+
+
+
+    #def get_average_score(self, obj):
+    #    count = obj.score.count()
+    #    if average == None:
+    #        return 0
+    #    return average
