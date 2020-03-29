@@ -29,7 +29,7 @@ class Addresses_Serializer(serializers.ModelSerializer):
     bathrooms = Bathrooms_Serializer(many = True, read_only = True)
     class Meta:
         model = Addresses
-        fields = ['user', 'id', 'address_line1', 'address_line2', 'city', 'state', 'zip', 'longitude', 'latitude', 'bathrooms']
+        fields = ['id', 'address_line1', 'address_line2', 'city', 'state', 'zip', 'longitude', 'latitude', 'bathrooms']
 
 class Users_Serializer(serializers.ModelSerializer):
     addresses = Addresses_Serializer(many = True, read_only = True)
