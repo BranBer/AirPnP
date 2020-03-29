@@ -284,15 +284,17 @@ def GetNearbyBathroomsAPI(request, lat, lon):
     maxLon = lon + 1.00000
  
     #addresses = Addresses.objects.filter(latitude__range = (minLat, maxLat), longitude__range = (minLon, maxLon))
+    addresses = Addresses.objects.filter(latitude__range = (minLat, maxLat), longitude__range = (minLon, maxLon)).values('id')
+    bathroom = Bathrooms.objects.filter(address_id__in = addresses)
 
     if request.method == 'GET':
-        addresses = Addresses.objects.filter(latitude__range = (minLat, maxLat), longitude__range = (minLon, maxLon))
-        serializer = Addresses_Serializer(addresses, many=True)
+        #bathroom = Bathrooms.objects.all()
+        serializer = Bathrooms_Serializer(bathroom, many=True)
         return JsonResponse(serializer.data, safe=False)
 
     elif request.method == 'POST':
         data = JSONParser().parse(request)
-        serializer = Addresses_Serializer(data=data)
+        serializer = Bathrooms_Serializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return JsonResponse(serializer.data, status=201)
