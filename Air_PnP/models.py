@@ -2,15 +2,47 @@ from django.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db.models.query import QuerySet
 from datetime import datetime
+from django.utils import timezone
 
-class Users(models.Model):
+from django.contrib.auth.models import AbstractBaseUser
+
+from django.conf import settings
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from rest_framework.authtoken.models import Token
+
+from Air_PnP.managers import MyUserManager
+
+
+class Users(AbstractBaseUser):
     username = models.CharField(max_length = 20, null = False, blank = False, unique = True, primary_key = True)
-    personalEmail = models.CharField(max_length = 30, unique = True)
-    password = models.CharField(max_length = 20, null = False, blank = False)
+    personalEmail = models.CharField(max_length = 50, unique = True)
     first_name = models.CharField(max_length = 20, null = False, blank = False)
     last_name = models.CharField(max_length = 20, null = False, blank = False)
     home_address = models.CharField(max_length = 150, null = False, blank = True, default = '')
     
+    date_joined = models.DateTimeField(auto_now_add = True)
+    last_login = models.DateTimeField(default = timezone.now)
+    is_admin = models.BooleanField(default = False)
+    is_active = models.BooleanField(default = True)
+    is_staff = models.BooleanField(default = False)
+    is_superuser = models.BooleanField(default = False)
+ 
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = ('personalEmail', 'first_name', 'last_name', 'home_address')
+
+    objects = MyUserManager()
+
+    def __str__(self):
+        return self.username + ", " + self.personalEmail
+
+    def has_perm(self, perm, obj = None):
+        return self.is_admin
+    
+    def has_module_perms(self, app_label):
+        return True
+
+
 class Addresses(models.Model):
     user = models.ForeignKey(Users, related_name='addresses', on_delete = models.CASCADE)
     address_line1 = models.CharField(max_length = 45, null = False, blank = False)
@@ -48,3 +80,7 @@ class Ratings(models.Model):
     title = models.CharField(max_length = 30, blank = True)
     description = models.CharField(max_length = 200)
 
+@receiver(post_save, sender = settings.AUTH_USER_MODEL)
+def create_auth_token(sender, instance = None, created = False, **kwargs):
+    if created:
+        Token.objects.create(user=instance)

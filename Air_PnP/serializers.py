@@ -1,4 +1,6 @@
 from rest_framework import serializers
+from django.contrib.auth import authenticate
+from rest_framework import exceptions 
 from Air_PnP.models import *
 
 class Payment_Info_Serializer(serializers.ModelSerializer):
@@ -35,12 +37,4 @@ class Users_Serializer(serializers.ModelSerializer):
     addresses = Addresses_Serializer(many = True, read_only = True)
     class Meta:
         model = Users
-        fields = ['username', 'personalEmail', 'password', 'first_name', 'last_name', 'addresses']
-
-
-
-    #def get_average_score(self, obj):
-    #    count = obj.score.count()
-    #    if average == None:
-    #        return 0
-    #    return average
+        fields = ['username', 'personalEmail', 'first_name', 'last_name', 'home_address', 'addresses']
