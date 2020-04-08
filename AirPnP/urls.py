@@ -33,6 +33,7 @@ urlpatterns = [
     path('User/PaymentInfo/API', Payment_Info_API, name = 'Payment_Info_API'),
     path('User/PaymentInfo/API/<str:user>/<str:email>/', PostToPaymentInfoAPI),
     path('User/GetToken/<str:usern>/<str:passw>/', getUserToken),
+    path('Bathrooms/post/', bathroomPost),
     path('Bathrooms', Create_Bathrooms, name = 'Bathrooms'),
     path('Bathrooms/API', Bathrooms_API, name = 'Bathrooms_API'),
     path('Bathrooms/API/<int:address_id>/<int:has_shower>/<int:has_bath>/<int:has_sink>/<int:has_fem_products>/<int:has_toilet_paper>/<int:num_of_toilets>/', PostToBathroomAPI),

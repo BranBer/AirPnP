@@ -25,8 +25,8 @@ SECRET_KEY = '=ww*6cujkcsgs7p_07*@7x_h2+al1ytbw7$e_^cy!5!221=6-p'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-#ALLOWED_HOSTS = ['127.0.0.1', '127.0.1.1', '96.250.36.86', 'www.airpnpbcs430w.info']
+#ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', '127.0.1.1', '96.250.36.86', 'www.airpnpbcs430w.info']
 
 # Application definition
 
@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'Air_PnP',
-    #'corsheaders',
+    'corsheaders',
     'rest_framework.authtoken',
 ]
 
@@ -51,13 +51,13 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-#    'corsheaders.middleware.CorsMiddleware',
-#    'django.middleware.common.CommonMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
 ]
 
-#CORS_ORIGIN_ALLOW_ALL = True
+CORS_ORIGIN_ALLOW_ALL = True
 
-#CORS_ORIGIN_WHITELIST = [ 'http://localhost:3000/', 'http://96.250.36.86:3000', 'https://96.250.36.86:3000', 'https://www.airpnpbcs430w.info/', 'https://www.airpnpbcs430w.info/:3000', ]
+CORS_ORIGIN_WHITELIST = [ 'http://localhost:3000/', 'http://96.250.36.86:3000', 'https://96.250.36.86:3000', 'https://www.airpnpbcs430w.info/', 'https://www.airpnpbcs430w.info/:3000', ]
 
 
 

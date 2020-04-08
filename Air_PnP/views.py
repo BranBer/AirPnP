@@ -94,7 +94,7 @@ def Create_Ratings(request):
 #@api_view(['GET', 'POST'])
 #@permission_classes([IsAuthenticated])
 
-@api_view(['GET'])
+@api_view(['GET',])
 @permission_classes((IsAuthenticated,))
 
 def Users_API(request):
@@ -129,7 +129,7 @@ def registerUser(request):
         return JsonResponse(data)
 
 @api_view(['GET'])
-@permission_classes((IsAuthenticated,))
+#@permission_classes((IsAuthenticated,))
 def Addresses_API(request):
     if request.method == 'GET':
         addresses = Addresses.objects.all()
@@ -209,8 +209,8 @@ def Ratings_API(request):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
-@api_view(['POST'])
-@permission_classes((IsAuthenticated,))
+@api_view(['GET',])
+#@permission_classes((IsAuthenticated,))
 def PostToUsersAPI(request, username, password, personalEmail, first_name, last_name, home_address):
     user = Users(username = username, password = password, personalEmail = personalEmail, first_name = first_name, last_name = last_name, home_address = home_address)
     user.save()
@@ -228,7 +228,7 @@ def PostToUsersAPI(request, username, password, personalEmail, first_name, last_
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
-@api_view(['POST'])
+@api_view(['GET',])
 @permission_classes((IsAuthenticated,))
 def PostToAddressesAPI(request, user, address_line1, address_line2, city, state, zip, longitude, latitude):
     myUser = Users.objects.get(pk = user)
@@ -251,7 +251,7 @@ def PostToAddressesAPI(request, user, address_line1, address_line2, city, state,
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
-@api_view(['POST'])
+@api_view(['GET',])
 @permission_classes((IsAuthenticated,))
 def PostToPaymentInfoAPI(request, user, email):
     myUser = Users.objects.get(pk = user)
@@ -273,7 +273,7 @@ def PostToPaymentInfoAPI(request, user, email):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
-@api_view(['GET'])
+@api_view(['GET',])
 @permission_classes((IsAuthenticated,))
 def PostToBathroomAPI(request, address_id, has_shower, has_bath, has_sink, has_fem_products, has_toilet_paper, num_of_toilets):
     if request.method == 'GET':
@@ -436,8 +436,20 @@ def getBathroomByID(request, id):
 
 @api_view(['GET'])
 def getUserToken(request, usern, passw):
-    user = authenticate(username = usern, password = passw)
+    user = None
     data = {}
+
+    try:
+        user = Users.objects.get(username = usern)
+        
+        if(user.is_superuser):
+            user = authenticate(username = usern, password = passw)
+        else:
+            user = Users.objects.get(username = usern, password = passw)
+
+    except ObjectDoesNotExist:
+        return HttpResponse("No User Found")
+
 
     if user is not None:
         if request.method == 'GET':   
@@ -447,10 +459,18 @@ def getUserToken(request, usern, passw):
 
             return JsonResponse(data)
     else:
-        return HTTPResponse("No User Found")
+        return HttpResponse("No User Found")
+    
 
-
-
+@api_view(['POST'])
+def bathroomPost(request):
+    if request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = Bathrooms_Serializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
 
 
 
