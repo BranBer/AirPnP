@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 
 import os
 
+
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
     'Air_PnP',
     'corsheaders',
     'rest_framework.authtoken',
+    'django_crontab',
 ]
 
 MIDDLEWARE = [
@@ -57,8 +59,7 @@ MIDDLEWARE = [
 
 CORS_ORIGIN_ALLOW_ALL = True
 
-CORS_ORIGIN_WHITELIST = [ 'http://localhost:3000/', 'http://96.250.36.86:3000', 'https://96.250.36.86:3000', 'https://www.airpnpbcs430w.info/', 'https://www.airpnpbcs430w.info/:3000', ]
-
+CORS_ORIGIN_WHITELIST = [ 'http://localhost:3000', 'http://96.250.36.86:3000', 'https://96.250.36.86:3000', 'https://www.airpnpbcs430w.info', 'https://www.airpnpbcs430w.info:3000', ]
 
 
 ROOT_URLCONF = 'AirPnP.urls'
@@ -146,5 +147,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
-#MEDIA_ROOT = os.path.join(BASE_DIR, "media")
-#MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+MEDIA_URL = '/media/'
+
+CRONJOBS = [ (('0 * * * *'), 'Air_PnP.cron.clear_users_today')]

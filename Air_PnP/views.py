@@ -7,17 +7,18 @@ from django.template import Template, Context, loader
 from Air_PnP.serializers import *
 
 from django.contrib.auth import authenticate
-
+from rest_framework.authtoken.views import ObtainAuthToken
 
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, throttle_classes
 
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
+from rest_framework.throttling import UserRateThrottle
 
 
 from django.db.models.query import QuerySet
@@ -26,6 +27,7 @@ from django.db.models import Avg
 #from django.db.models import When
 
 from datetime import datetime
+from datetime import timedelta
 # Create your views here.
 
 def Home_View(request):
@@ -76,9 +78,23 @@ def Create_Bathrooms(request):
     form = Bathrooms_Form(request.POST)
     if (form.is_valid()):
         post = form.save()
+        #sun = DayAvailable(post.id, 'Sunday')
+        #sun.save()
+        #mon = DayAvailable(post.id, 'Monday')
+        #mon.save()
+        #tue = DayAvailable(post.id, 'Tuesday')
+        #tue.save()
+        #wed = DayAvailable(post.id, 'Wednesday')
+        #wed.save()
+        #thur = DayAvailable(post.id, 'Thursday')
+        #thur.save()
+        #fri = DayAvailable(post.id, 'Friday')
+        #fri.save()
+        #sat = DayAvailable(post.id, 'Saturday')
+        #sat.save()         
 
-    link = 'Ratings'
-    link_name = 'Bathroom Ratings'
+    #link = 'Ratings'
+    #link_name = 'Bathroom Ratings'
 
     return render (request, 'bathroom_form.html' , {'form': form, 'form_title': 'Enter Bathroom Data'})
 
@@ -96,7 +112,7 @@ def Create_Ratings(request):
 
 @api_view(['GET',])
 @permission_classes((IsAuthenticated,))
-
+@throttle_classes([UserRateThrottle])
 def Users_API(request):
     if request.method == 'GET':
         user = Users.objects.all()
@@ -113,23 +129,21 @@ def Users_API(request):
 @api_view(['POST',])
 def registerUser(request):
     if request.method == 'POST':
-        serializer = Users_Serializer(data = request.data)
+        serializer = Registration_Serializer(data = request.data)
         data = {}
         if serializer.is_valid():
             user = serializer.save()
-            data['response'] = 'User successfully created'
-            data['personalEmail'] = user.personalEmail
+            data['response'] = "Successfully registered a new user"
             data['username'] = user.username
-            data['first_name'] = user.first_name
-            data['last_name'] = user.last_name
-            data['home_address'] = user.home_address
-            data['token'] = Token.objects.get(user=user).key
+            data['personalEmail'] = user.personalEmail
         else:
             data = serializer.errors
-        return JsonResponse(data)
+            
+        return JsonResponse(data, safe = False)
 
 @api_view(['GET'])
-#@permission_classes((IsAuthenticated,))
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def Addresses_API(request):
     if request.method == 'GET':
         addresses = Addresses.objects.all()
@@ -146,6 +160,7 @@ def Addresses_API(request):
 
 @api_view(['GET'])
 @permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def Payment_Info_API(request):
     if request.method == 'GET':
         pay = Payment_Info.objects.all()
@@ -162,6 +177,7 @@ def Payment_Info_API(request):
 
 @api_view(['GET'])
 @permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def Invoices_API(request):
     if request.method == 'GET':
         invoice = Invoices.objects.all()
@@ -176,8 +192,10 @@ def Invoices_API(request):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
+
 @api_view(['GET'])
 @permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def Bathrooms_API(request):
     if request.method == 'GET':
         bathroom = Bathrooms.objects.all()
@@ -187,14 +205,32 @@ def Bathrooms_API(request):
     elif request.method == 'POST':
         data = JSONParser().parse(request)
         #serializer = Bathrooms_Serializer(data=data)
-        serializer = Bathrooms_Serializer(data = data)
+        serializer = Bathrooms_Serializer(data = request.data)
         if serializer.is_valid():
             serializer.save()
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
-@api_view(['GET'])
+
+@api_view(['POST'])
+#@permission_classes((IsAuthenticated,))
+#@throttle_classes([UserRateThrottle])
+def Bathrooms_Post_API(request):
+    requestAuthToken = request.headers.get('Authorization')
+    user = Token.objects.get(key = requestAuthToken[6:]).user
+
+    if request.method == 'POST' and user.username != b.address_id.user.username:
+        data = request.data
+        serializer = Bathrooms_Serializer(data = request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+
+    return JsonResponse('Invalid user', safe=False)
+
 @permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def Ratings_API(request):
     if request.method == 'GET':
         rating = Ratings.objects.all()
@@ -209,10 +245,52 @@ def Ratings_API(request):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
+def DayAvailableAPI(request):
+    if request.method == 'GET':
+        days = DayAvailable.objects.all()
+        serializer = DayAvailable_Serializer(days, many=True)
+        return JsonResponse(serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = DayAvailable_Serializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+
+def PricingOptionsAPI(request):
+    if request.method == 'GET':
+        prices = PricingOption.objects.all()
+        serializer = PricingOption_Serializer(prices, many=True)
+        return JsonResponse(serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = PricingOption_Serializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+
+def PricingOptionsForBathroom(request, bathroom_id):
+    if request.method == 'GET':
+        prices = PricingOption.objects.filter(bathroom_id__exact = bathroom_id)
+        serializer = PricingOption_Serializer(prices, many=True)
+        return JsonResponse(serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = PricingOption_Serializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+
 @api_view(['GET',])
 #@permission_classes((IsAuthenticated,))
-def PostToUsersAPI(request, username, password, personalEmail, first_name, last_name, home_address):
-    user = Users(username = username, password = password, personalEmail = personalEmail, first_name = first_name, last_name = last_name, home_address = home_address)
+def PostToUsersAPI(request, username, password, personalEmail, first_name, last_name, home_address, home_city, home_state, home_zip):
+    user = Users(username = username, password = password, personalEmail = personalEmail, first_name = first_name, last_name = last_name, home_address = home_address, home_city = home_city, home_state = home_state, home_zip = home_zip)
     user.save()
 
     if request.method == 'GET':
@@ -228,55 +306,69 @@ def PostToUsersAPI(request, username, password, personalEmail, first_name, last_
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
-@api_view(['GET',])
-@permission_classes((IsAuthenticated,))
-def PostToAddressesAPI(request, user, address_line1, address_line2, city, state, zip, longitude, latitude):
-    myUser = Users.objects.get(pk = user)
+@api_view(['POST',])
+#@permission_classes((IsAuthenticated,))
+def PostToAddressesAPI(request): #, user, address_line1, address_line2, city, state, zip, longitude, latitude):
+    #myUser = Users.objects.get(pk = user)
+    #address = Addresses(address_line1 = address_line1, address_line2 = address_line2, city = city, state = state, zip = zip, longitude = longitude, latitude = latitude)
+    #address.save()
+    #address.user.add(myUser)
     
-    address = Addresses(address_line1 = address_line1, address_line2 = address_line2, city = city, state = state, zip = zip, longitude = longitude, latitude = latitude)
-    address.save()
+    requestAuthToken = request.headers.get('Authorization')
+    user = Token.objects.get(key = requestAuthToken[6:]).user
 
-    address.user.add(myUser)
+    if request.method == 'POST':
+        data = request.data
+        #data.GET['username'] = user.username
+        
+        #user = user.username 
+        address_line1 = data['address_line1']
+        address_line2 = data['address_line2']
+        city = data['city']
+        state = data['state']
+        zip = data['zip']
+        longitude = data['longitude']
+        latitude = data['latitude']
 
-    if request.method == 'GET':
-        addresses = Addresses.objects.all()
-        serializer = Addresses_Serializer(addresses, many=True)
+        a = Addresses.objects.create(
+            user = user, 
+            address_line1 = address_line1, 
+            address_line2 = address_line2,
+            city = city,
+            state = state,
+            zip = zip,
+            longitude = longitude,
+            latitude = latitude)
+
+        serializer = Addresses_Serializer(a, many = False)
         return JsonResponse(serializer.data, safe=False)
 
-    elif request.method == 'POST':
-        data = JSONParser().parse(request)
-        serializer = Addresses_Serializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data, status=201)
-        return JsonResponse(serializer.errors, status=400)
+@api_view(['POST'])
+#@permission_classes((IsAuthenticated,))
+def PostToPaymentInfoAPI(request):
+    try:
+        data = {}
+        requestAuthToken = request.headers.get('Authorization')
+        user = Token.objects.get(key = requestAuthToken[6:]).user
 
-@api_view(['GET',])
-@permission_classes((IsAuthenticated,))
-def PostToPaymentInfoAPI(request, user, email):
-    myUser = Users.objects.get(pk = user)
+        email = request.data['email']
 
-    payment_info = Payment_Info(email = email)
-    payment_info.user = myUser
-    payment_info.save()
-
-    if request.method == 'GET':
-        pay = Payment_Info.objects.all()
-        serializer = Payment_Info_Serializer(pay, many=True)
-        return JsonResponse(serializer.data, safe=False)
-
-    elif request.method == 'POST':
-        data = JSONParser().parse(request)
-        serializer = Payment_Info_Serializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data, status=201)
-        return JsonResponse(serializer.errors, status=400)
+        p = Payment_Info.objects.create(email = email, user = user)
+    
+        data['user'] = p.user.username
+        data['email'] = p.email 
+    
+    #serializer = Payment_Info_Serializer(p, many = False)
+        
+        return JsonResponse(data, safe = False)
+    except:
+        return JsonResponse("User doesn't exist / Can't use someone else's payment info", safe = False)
 
 @api_view(['GET',])
 @permission_classes((IsAuthenticated,))
 def PostToBathroomAPI(request, address_id, has_shower, has_bath, has_sink, has_fem_products, has_toilet_paper, num_of_toilets):
     if request.method == 'GET':
+        #Get corresponding address object
         address = Addresses.objects.get(pk = address_id)
         bathroom = Bathrooms(address_id = address, has_shower = bool(has_shower), has_bath = bool(has_bath), has_sink = bool(has_sink), has_fem_products = bool(has_fem_products), has_toilet_paper = bool(has_toilet_paper), num_of_toilets = num_of_toilets)
         bathroom.save()
@@ -288,25 +380,6 @@ def PostToBathroomAPI(request, address_id, has_shower, has_bath, has_sink, has_f
     elif request.method == 'POST':
         data = JSONParser().parse(request)
         serializer = Bathrooms_Serializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data, status=201)
-        return JsonResponse(serializer.errors, status=400)
-
-def PostToRatingsAPI(request, user, bathroom_id, score, title, description):
-    if request.method == 'GET':
-        myUser = Users.objects.get(pk = user)
-        myBathroom = Bathrooms.objects.get(pk = bathroom_id)
-        rating = Ratings(user = myUser, bathroom_id = myBathroom, score = score, title = title, description = description)
-        rating.save()
-
-        rating = Ratings.objects.all()
-        serializer = Ratings_Serializer(rating, many=True)
-        return JsonResponse(serializer.data, safe=False)
-
-    elif request.method == 'POST':
-        data = JSONParser().parse(request)
-        serializer = Ratings_Serializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return JsonResponse(serializer.data, status=201)
@@ -402,7 +475,9 @@ def top5Bathrooms(request):
             serializer.save()
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
-    
+
+#@api_view(['GET',])
+#@permission_classes((IsAuthenticated,))    
 def getUser(request, usern):
     user = Users.objects.filter(username__iexact = usern)
 
@@ -419,7 +494,7 @@ def getUser(request, usern):
         return JsonResponse(serializer.errors, status=400)
 
 def getBathroomByID(request, id):
-    bathroom = Bathrooms.objects.get.filter(id__exact = id)
+    bathroom = Bathrooms.objects.filter(id__exact = id)
     
     if request.method == 'GET':
         #bathroom = Bathrooms.objects.all()
@@ -447,7 +522,7 @@ def getUserToken(request, usern, passw):
         else:
             user = Users.objects.get(username = usern, password = passw)
 
-    except ObjectDoesNotExist:
+    except Users.DoesNotExist:
         return HttpResponse("No User Found")
 
 
@@ -472,11 +547,287 @@ def bathroomPost(request):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
+@api_view(['GET',])
+@permission_classes((IsAuthenticated,))
+def getUserFromToken(request, token):
+    users = Users.objects.filter()
+    u = None
+    data = {}
+
+    for user in users:
+        userToken = Token.objects.get(user=user).key
+        if(token == userToken):
+            u = user
+            if request.method == 'GET':
+                data['username'] = u.username
+                data['personalEmail'] = u.personalEmail
+                data['first_name'] = u.first_name
+                data['last_name'] = u.last_name
+                data['home_address'] = u.home_address
+                data['home_state'] = u.home_state
+                data['home_city'] = u.home_city
+                data['home_zip'] = u.home_zip
+                data['token'] = userToken
+
+                return JsonResponse(data, safe=False)
+                #serializer = Users_Serializer(u, many=True)
+                #return JsonResponse(serializer.data, safe=False)
+            
+    return JsonResponse('Invalid Token', safe=False)
+
+@api_view(['GET'])
+def secureGetUserFromToken(request):
+    users = Users.objects.filter()
+    u = None
+    data = {}
+
+    requestAuthToken = request.headers.get('Authorization')
+
+    for user in users:
+        userToken = Token.objects.get(user=user).key
+        if(requestAuthToken[6:] == userToken):
+            u = user
+            if request.method == 'GET' and u != None:                            
+                #return JsonResponse('got here', safe=False)
+                serializer = Users_Serializer(u, many=False)
+                return JsonResponse(serializer.data, safe=False)
+    
+    return JsonResponse('Invalid Token!', safe=False)
+
+@api_view(['POST'])
+def createBathroomAvailability(request):#, bathroom_id, week_day, open_time, close_time):
+    data = {}
+    bathroom_id = request.data['bathroom_id']
+    week_day = request.data['week_day']
+    open_time = request.data['open_time']
+    close_time = request.data['close_time']
+
+    open_time = datetime.strptime(open_time, '%H:%M:%S')
+    close_time = datetime.strptime(close_time, '%H:%M:%S')
+
+    try:
+        bathroom = Bathrooms.objects.get(id = bathroom_id)
+
+        day = DayAvailable.objects.get(bathroom_id = bathroom, week_day = week_day)
+        timeSlot = TimesAvailable.objects.create(week_day = day, open_time = open_time, close_time = close_time)
+
+        data['bathroom_id'] = bathroom_id
+        data['week_day'] = week_day
+        data['open_time'] = str(open_time)
+        data['close_time'] = str(close_time)
+
+        return JsonResponse(data, safe = False)
+    except (Bathrooms.DoesNotExist, DayAvailable.DoesNotExist) as e:
+        return JsonResponse('Bathroom does not exist / Invalid Day')
 
 
 
+    return JsonResponse('Bathroom does not exist', safe = False)
+
+@api_view(['POST'])
+def reserveBathroom(request): #, bathroom_id, week_day, open_time, date, how_long):
+    data = {}
+
+    bathroom_id = request.data['bathroom_id']
+    bathroom_id = int(bathroom_id)
+    week_day = request.data['week_day']
+    open_time = request.data['open_time']
+    date = request.data['date']
+    how_long = request.data['how_long']
 
 
 
+    #return JsonResponse(request.data, safe = False)
 
+
+    daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+    date = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S')
+    how_long = datetime.strptime(how_long, '%H:%M:%S')
+    open_time = datetime.strptime(open_time, '%H:%M:%S')
+    
+    bathroom = Bathrooms.objects.filter(id = bathroom_id)
+    user = None
+
+    if(bathroom.count() > 0):                
+        day = DayAvailable.objects.filter(bathroom_id = bathroom[0], week_day = week_day)
+        
+        #Checks to see if the auth token is valid. If not then it prematurely returns a JsonResponse detailing the error.
+        try:
+            requestAuthToken = request.headers.get('Authorization')
+            user = Token.objects.get(key = requestAuthToken[6:]).user
+            #user = Users.objects.get(username = username)
+        except Users.DoesNotExist:
+            return JsonResponse('User does not exist', safe = False)
+
+        pricingOptions = PricingOption.objects.filter(bathroom_id = bathroom[0], timePeriod = how_long)
+        #return JsonResponse('day: ' + str(day.count()) + ' price: ' + str(pricingOptions.count()), safe = False)
+        #Checks to see if the day is available for the select bathroom and if their are pricing options listed for that bathroom.
+        #If not then it prematurely returns a JsonResponse detailing the error.
+        if(day.count() != 0 and daysOfWeek[date.weekday()] == week_day and pricingOptions.count() != 0):            
+            #Get a timeslot if there is one available.                        
+            reservedTime = TimesAvailable.objects.filter(week_day = day[0], open_time = open_time)
+            
+            #checks if the requested time of day is within the available bathroom hours.
+            if(reservedTime.count() != 0 and date.time() < reservedTime[0].close_time and date.time() >= reservedTime[0].open_time):
+                #return JsonResponse('Here', safe = False)
+                #Checks to see if time slot does not overlap with others. If it does not overlap it creates a schedules time for a user at the requested bathroom.
+                min = (how_long.hour * 60) + how_long.minute
+                timeSpacing = date + timedelta(minutes = min)
+                schedule = Scheduler.objects.filter(date__range = (date, timeSpacing))
+                
+                #Get the payment info for the bathroom owner and the customer and creates an invoice
+                #try:
+                #    #Get bathroom owner
+                #    bathroomOwner = bathroom[0].address_id.user
+                #    owner = Payment_Info.objects.get(user = bathroomOwner)
+                #    customer = Payment_Info.objects.get(user = user)
+                #    invoice = Invoices.objects.create(payer = customer, payee = owner, amount = pricingOptions[0].amount, date = datetime.now())
+                #except (Payment_Info.DoesNotExist, Invoices.DoesNotExist) as e:
+                #    return JsonResponse('Users do not have any payment information', safe = False)
+                
+                #Checks to see if the alloted time requested goes past the bathroom's hours.
+                #If it does then it prematurely returns a JsonResponse detailing the error.
+                if(timeSpacing.time() > reservedTime[0].close_time):
+                    return JsonResponse('Unable to request for this time slot: Alloted time requested goes past the bathroom\'s closing time', safe = False)
+
+                if(schedule.count() == 0):
+                    data['username'] = user.username
+                    data['bathroom_id'] = bathroom_id
+                    data['week_day'] = week_day                    
+                    data['date'] = str(date.date())
+                    data['time'] = str(date.time())
+                    data['minutes_alloted'] = min
+
+                    reservedTime[0].users.add(user)
+                    Scheduler.objects.create(user = user, bathroom = bathroom[0], date = date, duration = how_long)
+                    
+                    return JsonResponse(data, safe = False)
+
+                return JsonResponse('Time slot is taken', safe = False)
+            else:
+                return JsonResponse('Time is unavailable ' + str(reservedTime[0].open_time), safe = False)
+
+    return JsonResponse('bathroom does not exist', safe = False)
+
+def availabilityForBathrooms(request, bathroom_id):
+    try:
+        b = Bathrooms.objects.get(id = bathroom_id)
+
+        if request.method == 'GET':
+            days = DayAvailable.objects.filter(bathroom_id = b)
+            serializer = DayAvailable_Serializer(days, many=True)
+            return JsonResponse(serializer.data, safe=False)
+
+        elif request.method == 'POST':
+            data = JSONParser().parse(request)
+            serializer = DayAvailable_Serializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return JsonResponse(serializer.data, status=201)
+            return JsonResponse(serializer.errors, status=400)
+    except Bathrooms.DoesNotExist:
+        return JsonResponse('bathroom does not exist', safe=False)
+
+
+def SchedulerAPI(request):
+    if request.method == 'GET':
+        schedule = Scheduler.objects.all()
+        serializer = Scheduler_Serializer(schedule, many=True)
+        return JsonResponse(serializer.data, safe=False)
+
+    elif request.method == 'POST':
+        data = JSONParser().parse(request)
+        serializer = Scheduler_Serializer(data=data)
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse(serializer.data, status=201)
+        return JsonResponse(serializer.errors, status=400)
+
+def getAppointmentsForBathroom(request, bathroom_id):
+    try:
+        bathroom = Bathrooms.objects.get(id = bathroom_id)
+
+        if request.method == 'GET':
+            schedule = Scheduler.objects.filter(bathroom = bathroom)
+            serializer = Scheduler_Serializer(schedule, many=True)
+            return JsonResponse(serializer.data, safe=False)
+
+    except Bathrooms.DoesNotExist:
+        return JsonResponse("Bathroom or Schedule does not exist", status=400)
+
+def createBathroomPricingOption(request, bathroom_id, how_long, amount):
+    #Makes sure that the bathroom is owned by the user with the current auth token in the request header so that
+    #other users can't create pricing options for bathrooms they don't own
+    how_long = datetime.strptime(how_long, "%H:%M:%S")
+    amount = float(amount)
+
+    requestAuthToken = request.headers.get('Authorization')
+    user = Token.objects.get(key = requestAuthToken[6:]).user
+    addresses = Addresses.objects.filter(user = user).values('id')
+    b = Bathrooms.objects.filter(id = bathroom_id, address_id__in = addresses)
+    data = {}
+
+    if(b[0] != None):
+        p = PricingOption.objects.create(bathroom_id = b[0], timePeriod = how_long, amount = amount)
+        data['bathroom_id'] = bathroom_id
+        data['how_long'] = how_long
+        data['amount'] = amount
+
+        return JsonResponse(data, safe = False)
+
+    return JsonResponse('bathroom does not exist', safe = False)
+
+@api_view(['POST'])
+def custom_login(request):
+    user = None
+    username = None
+    password = None
+    data = {}
+
+    try:
+        username = request.data['username']
+        password = request.data['password']
+    except:
+        return JsonResponse("Username and Password required!", safe = False)
+
+    try:
+        user = Users.objects.get(username = username)
+        
+        if(user.is_superuser):
+            user = authenticate(username = username, password = password)
+        else:
+            user = Users.objects.get(username = username, password = password)
+
+        token = Token.objects.get(user=user).key
+        data['username'] = user.username
+        data['token'] = token
+
+        return JsonResponse(data, safe = False)
+
+    except Users.DoesNotExist:
+        try:
+            user = authenticate(username = username, password = password)
+            token = Token.objects.get(user=user).key
+            data['username'] = user.username
+            data['token'] = token
+            
+            return JsonResponse(data, safe = False)
+        except:
+            return JsonResponse("No user found", safe = False)
+
+@api_view(['GET',]) 
+def getAddressFromToken(request):
+    try:
+        requestAuthToken = request.headers.get('Authorization')
+        user = Token.objects.get(key = requestAuthToken[6:]).user
+
+        addresses = Addresses.objects.filter(user = user)
+
+        serializer = Addresses_Serializer(addresses, many = True)
+        return JsonResponse(serializer.data, safe = False)
+    except Users.DoesNotExist:
+        return JsonResponse("No user found", safe = False)
+    except Addresses.DoesNotExist:
+        return JsonResponse("No Addresses for User", safe = False)
 

@@ -20,7 +20,10 @@ class Users(AbstractBaseUser):
     first_name = models.CharField(max_length = 20, null = False, blank = False)
     last_name = models.CharField(max_length = 20, null = False, blank = False)
     home_address = models.CharField(max_length = 150, null = False, blank = True, default = '')
-    
+    home_state = models.CharField(max_length = 2, null = False, blank = True, default = '')
+    home_city = models.CharField(max_length = 45, null = False, blank = True, default = '')
+    home_zip = models.IntegerField(null = False, blank = True, default = 0000)
+
     date_joined = models.DateTimeField(auto_now_add = True)
     last_login = models.DateTimeField(default = timezone.now)
     is_admin = models.BooleanField(default = False)
@@ -47,7 +50,7 @@ class Addresses(models.Model):
     user = models.ForeignKey(Users, related_name='addresses', on_delete = models.CASCADE)
     address_line1 = models.CharField(max_length = 45, null = False, blank = False)
     address_line2 = models.CharField(max_length = 45, null = True, blank = True)
-    city = models.CharField(max_length = 20, null = False, blank = False)
+    city = models.CharField(max_length = 45, null = False, blank = False)
     state = models.CharField(max_length = 2, null = False, blank = False)
     zip = models.IntegerField(null = False, blank = False)
     longitude = models.DecimalField(max_digits=21, decimal_places=15)
@@ -72,6 +75,16 @@ class Bathrooms(models.Model):
     has_toilet_paper = models.BooleanField(null = True)
     num_of_toilets = models.IntegerField(default = 0)
 
+    #Bathroom Images
+    image1 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/%Y/%m/%d/')
+    image2 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/%Y/%m/%d/')
+    image3 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/%Y/%m/%d/')
+    image4 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/%Y/%m/%d/')
+
+class PricingOption(models.Model):
+    bathroom_id = models.ForeignKey(Bathrooms, on_delete = models.CASCADE, related_name = "pricing")
+    timePeriod = models.TimeField(blank = True)
+    amount = models.DecimalField(max_digits = 6, decimal_places = 2)
 
 class Ratings(models.Model):
     user = models.ForeignKey(Users, on_delete = models.CASCADE)
@@ -80,7 +93,48 @@ class Ratings(models.Model):
     title = models.CharField(max_length = 30, blank = True)
     description = models.CharField(max_length = 200)
 
+class DayAvailable(models.Model):
+    bathroom_id = models.ForeignKey(Bathrooms, on_delete = models.CASCADE, related_name = "dayAvailable")
+    week_day = models.CharField(max_length = 11, blank = True, unique = False)
+
+class TimesAvailable(models.Model):
+    week_day = models.ForeignKey(DayAvailable, on_delete = models.CASCADE, related_name = 'timesAvailable', null = True)
+    #bathroom_id = models.ForeignKey(Bathrooms, on_delete = models.CASCADE, related_name = "timesAvailable")
+    #week_day = models.CharField(max_length = 11, blank = True)
+    open_time = models.TimeField(blank = True, null = True)
+    close_time = models.TimeField(blank = True, null = True)
+
+    users = models.ManyToManyField(Users, blank = True)
+
+class Scheduler(models.Model):
+    user = models.ForeignKey(Users, on_delete = models.CASCADE)
+    bathroom = models.ForeignKey(Bathrooms, on_delete = models.CASCADE)
+    date = models.DateTimeField(blank = True) 
+    duration = models.TimeField(blank = True, null = True)   
+    #def closing():
+    #    current_time = datetime.now().time()
+    #    if (current_time > close_time):
+    #        users = []
+
+    #def appendUser(self, username):
+    #    current_time = datetime.now().time()
+    #    if (current_time > close_time):
+    #        users.append((username, datetime.now()))
+
+
+
 @receiver(post_save, sender = settings.AUTH_USER_MODEL)
 def create_auth_token(sender, instance = None, created = False, **kwargs):
     if created:
         Token.objects.create(user=instance)
+
+@receiver(post_save, sender=Bathrooms, dispatch_uid="create_days_of_week")
+def create_days_for_bathroom(sender, instance, **kwargs):
+    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Sunday')
+    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Monday')
+    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Tuesday')
+    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Wednesday')
+    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Thursday')
+    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Friday')
+    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Saturday')
+    

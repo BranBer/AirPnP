@@ -19,6 +19,7 @@ class MyUserManager(BaseUserManager):
             first_name = first_name,
             last_name = last_name,
             home_address = home_address,
+            password = password,
         )
 
         user.set_password(password)
