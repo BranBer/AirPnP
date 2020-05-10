@@ -18,7 +18,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
-from rest_framework.throttling import UserRateThrottle
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle
 
 
 from django.db.models.query import QuerySet
@@ -110,23 +110,17 @@ def Create_Ratings(request):
 #@api_view(['GET', 'POST'])
 #@permission_classes([IsAuthenticated])
 
-@api_view(['GET',])
+@api_view(['GET'])
 @permission_classes((IsAuthenticated,))
 @throttle_classes([UserRateThrottle])
 def Users_API(request):
-    if request.method == 'GET':
-        user = Users.objects.all()
-        serializer = Users_Serializer(user, many=True)
-        return JsonResponse(serializer.data, safe=False)
-    elif request.method == 'POST':
-        data = JSONParser().parse(request)
-        serializer = Users_Serializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data, status=201)
-        return JsonResponse(serializer.errors, status=400)
+    u = Users.objects.all()
+    ser = Users_Serializer(u, many = True)
+
+    return JsonResponse(ser.data, safe = False)
 
 @api_view(['POST',])
+@throttle_classes([AnonRateThrottle])
 def registerUser(request):
     if request.method == 'POST':
         serializer = Registration_Serializer(data = request.data)
@@ -134,8 +128,8 @@ def registerUser(request):
         if serializer.is_valid():
             user = serializer.save()
             data['response'] = "Successfully registered a new user"
-            data['username'] = user.username
-            data['personalEmail'] = user.personalEmail
+            #data['username'] = user.username
+            #data['personalEmail'] = user.personalEmail
         else:
             data = serializer.errors
             
@@ -162,7 +156,7 @@ def Addresses_API(request):
 @permission_classes((IsAuthenticated,))
 @throttle_classes([UserRateThrottle])
 def Payment_Info_API(request):
-    if request.method == 'GET':
+    if request.method == 'GET' and Token.objects.get(key = request.headers.get('Authorization')[6:]).user.is_superuser:
         pay = Payment_Info.objects.all()
         serializer = Payment_Info_Serializer(pay, many=True)
         return JsonResponse(serializer.data, safe=False)
@@ -179,7 +173,8 @@ def Payment_Info_API(request):
 @permission_classes((IsAuthenticated,))
 @throttle_classes([UserRateThrottle])
 def Invoices_API(request):
-    if request.method == 'GET':
+    user = Token.objects.get(key = request.headers.get('Authorization')[6:]).user
+    if request.method == 'GET' and user.is_superuser:
         invoice = Invoices.objects.all()
         serializer = Invoices_Serializer(invoice, many=True)
         return JsonResponse(serializer.data, safe=False)
@@ -197,54 +192,68 @@ def Invoices_API(request):
 @permission_classes((IsAuthenticated,))
 @throttle_classes([UserRateThrottle])
 def Bathrooms_API(request):
-    if request.method == 'GET':
-        bathroom = Bathrooms.objects.all()
-        serializer = Bathrooms_Serializer(bathroom, many=True)
-        return JsonResponse(serializer.data, safe=False)
-
-    elif request.method == 'POST':
-        data = JSONParser().parse(request)
-        #serializer = Bathrooms_Serializer(data=data)
-        serializer = Bathrooms_Serializer(data = request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data, status=201)
-        return JsonResponse(serializer.errors, status=400)
-
+    bathroom = Bathrooms.objects.all()
+    serializer = Bathrooms_Serializer(bathroom, many=True)
+    return JsonResponse(serializer.data, safe=False)
 
 @api_view(['POST'])
-#@permission_classes((IsAuthenticated,))
-#@throttle_classes([UserRateThrottle])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def Bathrooms_Post_API(request):
-    requestAuthToken = request.headers.get('Authorization')
-    user = Token.objects.get(key = requestAuthToken[6:]).user
+    try:
+        bathroom = BathroomPost_Serializer(data = request.data)
+        requestAuthToken = request.headers.get('Authorization')
+        user = Token.objects.get(key = requestAuthToken[6:]).user
 
-    if request.method == 'POST' and user.username != b.address_id.user.username:
-        data = request.data
-        serializer = Bathrooms_Serializer(data = request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data, status=201)
-        return JsonResponse(serializer.errors, status=400)
+        address = Addresses.objects.get(id = int(request.data['address_id']))
+    
+        if bathroom.is_valid() and address.user.username == user.username:
+            bathroom.save()
+            return JsonResponse(bathroom.data, safe = False)
+        else:
+            return JsonResponse("You must own the address to create a bathroom in it!", safe = False)
 
-    return JsonResponse('Invalid user', safe=False)
-
+    except Token.DoesNotExist:
+        return JsonResponse("User does not exist", safe = False)
+    except Addresses.DoesNotExist:
+        return JsonResponse("Address does not exist")   
+    
+@api_view(['GET'])
 @permission_classes((IsAuthenticated,))
 @throttle_classes([UserRateThrottle])
 def Ratings_API(request):
-    if request.method == 'GET':
-        rating = Ratings.objects.all()
-        serializer = Ratings_Serializer(rating, many=True)
-        return JsonResponse(serializer.data, safe=False)
+    rating = Ratings.objects.all()
+    serializer = Ratings_Serializer(rating, many=True)
+    return JsonResponse(serializer.data, safe=False)
 
-    elif request.method == 'POST':
-        data = JSONParser().parse(request)
-        serializer = Ratings_Serializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data, status=201)
-        return JsonResponse(serializer.errors, status=400)
+@api_view(['POST'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
+def MakeARating(request):
+    try:
+        user = Token.objects.get(key = request.headers.get('Authorization')[6:]).user
+        bathroom_id = int(request.data['bathroom_id'])
+        b = Bathrooms.objects.get(id = bathroom_id)
 
+        if(b.address_id.user.username != user.username):
+            score = int(request.data['score'])
+            title = request.data['title']
+            description = request.data['description']
+
+            r = Ratings.objects.create(user = user, bathroom_id = b, score = score, title = title, description = description)
+            serializer = Ratings_Serializer(r, many = False)
+
+            return JsonResponse(serializer.data, safe = False)
+        else:
+            return JsonResponse('Bathroom Owners cannot make reviews for their own bathrooms!', safe = False)
+    except Token.DoesNotExist:
+        return JsonResponse('Invalid Token', safe = False)
+    except Bathrooms.DoesNotExist:
+        return JsonResponse('Bathroom Does Not Exist', safe = False)
+
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def DayAvailableAPI(request):
     if request.method == 'GET':
         days = DayAvailable.objects.all()
@@ -259,6 +268,9 @@ def DayAvailableAPI(request):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def PricingOptionsAPI(request):
     if request.method == 'GET':
         prices = PricingOption.objects.all()
@@ -273,6 +285,9 @@ def PricingOptionsAPI(request):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def PricingOptionsForBathroom(request, bathroom_id):
     if request.method == 'GET':
         prices = PricingOption.objects.filter(bathroom_id__exact = bathroom_id)
@@ -287,64 +302,53 @@ def PricingOptionsForBathroom(request, bathroom_id):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
-@api_view(['GET',])
-#@permission_classes((IsAuthenticated,))
-def PostToUsersAPI(request, username, password, personalEmail, first_name, last_name, home_address, home_city, home_state, home_zip):
-    user = Users(username = username, password = password, personalEmail = personalEmail, first_name = first_name, last_name = last_name, home_address = home_address, home_city = home_city, home_state = home_state, home_zip = home_zip)
-    user.save()
-
-    if request.method == 'GET':
-        user = Users.objects.all()
-        serializer = Users_Serializer(user, many=True)
-        return JsonResponse(serializer.data, safe=False)
-
-    elif request.method == 'POST':
-        data = JSONParser().parse(request)
-        serializer = Users_Serializer(data=data)
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse(serializer.data, status=201)
-        return JsonResponse(serializer.errors, status=400)
-
-@api_view(['POST',])
-#@permission_classes((IsAuthenticated,))
+@api_view(['POST'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def PostToAddressesAPI(request): #, user, address_line1, address_line2, city, state, zip, longitude, latitude):
     #myUser = Users.objects.get(pk = user)
     #address = Addresses(address_line1 = address_line1, address_line2 = address_line2, city = city, state = state, zip = zip, longitude = longitude, latitude = latitude)
     #address.save()
     #address.user.add(myUser)
-    
-    requestAuthToken = request.headers.get('Authorization')
-    user = Token.objects.get(key = requestAuthToken[6:]).user
 
-    if request.method == 'POST':
-        data = request.data
-        #data.GET['username'] = user.username
+    try:   
+        requestAuthToken = request.headers.get('Authorization')
+        user = Token.objects.get(key = requestAuthToken[6:]).user
+
+        if request.method == 'POST':
+            data = request.data
+            #data.GET['username'] = user.username
         
-        #user = user.username 
-        address_line1 = data['address_line1']
-        address_line2 = data['address_line2']
-        city = data['city']
-        state = data['state']
-        zip = data['zip']
-        longitude = data['longitude']
-        latitude = data['latitude']
+            #user = user.username 
+            address_line1 = data['address_line1']
+            address_line2 = data['address_line2']
+            city = data['city']
+            state = data['state']
+            zip = data['zip']
+            longitude = float(data['longitude'])
+            latitude = float(data['latitude'])
 
-        a = Addresses.objects.create(
-            user = user, 
-            address_line1 = address_line1, 
-            address_line2 = address_line2,
-            city = city,
-            state = state,
-            zip = zip,
-            longitude = longitude,
-            latitude = latitude)
+            a = Addresses.objects.create(
+                user = user, 
+                address_line1 = address_line1, 
+                address_line2 = address_line2,
+                city = city,
+                state = state,
+                zip = zip,
+                longitude = longitude,
+                latitude = latitude)
 
-        serializer = Addresses_Serializer(a, many = False)
-        return JsonResponse(serializer.data, safe=False)
+            serializer = Addresses_Serializer(a, many = False)
+            return JsonResponse(serializer.data, safe=False)
+    except Token.DoesNotExist:
+         return JsonResponse("Token does not exist.", safe=False)
+    except Address.DoesNotExist:
+         return JsonResponse("Something went wrong.", safe=False)
+
 
 @api_view(['POST'])
-#@permission_classes((IsAuthenticated,))
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def PostToPaymentInfoAPI(request):
     try:
         data = {}
@@ -366,6 +370,7 @@ def PostToPaymentInfoAPI(request):
 
 @api_view(['GET',])
 @permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def PostToBathroomAPI(request, address_id, has_shower, has_bath, has_sink, has_fem_products, has_toilet_paper, num_of_toilets):
     if request.method == 'GET':
         #Get corresponding address object
@@ -385,6 +390,9 @@ def PostToBathroomAPI(request, address_id, has_shower, has_bath, has_sink, has_f
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def PostToInvoicesAPI(request, amount, payer, payee):
     payerUser = Users.objects.get(pk = payer)
     payeeUser = Users.objects.get(pk = payee)
@@ -408,6 +416,9 @@ def PostToInvoicesAPI(request, amount, payer, payee):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def GetNearbyBathroomsAPI(request, lat, lon):
     lat = float(lat)
     lon = float(lon)
@@ -435,6 +446,9 @@ def GetNearbyBathroomsAPI(request, lat, lon):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def top5BathroomsInCity(request, city, state):
     a = Addresses.objects.filter(city__iexact = city, state__iexact = state).values('id')
     b = Bathrooms.objects.filter(address_id__in = a).values('id')
@@ -456,6 +470,9 @@ def top5BathroomsInCity(request, city, state):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def top5Bathrooms(request):
     b = Bathrooms.objects.all().values('id')
     r = Ratings.objects.filter(bathroom_id__in = b).values('bathroom_id').annotate(avsc = Avg('score')).order_by('-avsc')[:5]    
@@ -476,8 +493,9 @@ def top5Bathrooms(request):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
-#@api_view(['GET',])
-#@permission_classes((IsAuthenticated,))    
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])  
 def getUser(request, usern):
     user = Users.objects.filter(username__iexact = usern)
 
@@ -493,6 +511,9 @@ def getUser(request, usern):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def getBathroomByID(request, id):
     bathroom = Bathrooms.objects.filter(id__exact = id)
     
@@ -510,6 +531,8 @@ def getBathroomByID(request, id):
         return JsonResponse(serializer.errors, status=400)
 
 @api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def getUserToken(request, usern, passw):
     user = None
     data = {}
@@ -538,6 +561,8 @@ def getUserToken(request, usern, passw):
     
 
 @api_view(['POST'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def bathroomPost(request):
     if request.method == 'POST':
         data = JSONParser().parse(request)
@@ -549,6 +574,7 @@ def bathroomPost(request):
 
 @api_view(['GET',])
 @permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def getUserFromToken(request, token):
     users = Users.objects.filter()
     u = None
@@ -576,6 +602,8 @@ def getUserFromToken(request, token):
     return JsonResponse('Invalid Token', safe=False)
 
 @api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def secureGetUserFromToken(request):
     users = Users.objects.filter()
     u = None
@@ -595,36 +623,44 @@ def secureGetUserFromToken(request):
     return JsonResponse('Invalid Token!', safe=False)
 
 @api_view(['POST'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def createBathroomAvailability(request):#, bathroom_id, week_day, open_time, close_time):
     data = {}
-    bathroom_id = request.data['bathroom_id']
+    bathroom_id = int(request.data['bathroom_id'])
     week_day = request.data['week_day']
     open_time = request.data['open_time']
     close_time = request.data['close_time']
 
-    open_time = datetime.strptime(open_time, '%H:%M:%S')
-    close_time = datetime.strptime(close_time, '%H:%M:%S')
+    open_time = datetime.strptime(open_time, '%H:%M:%S').time()
+    close_time = datetime.strptime(close_time, '%H:%M:%S').time()
 
     try:
+        requestAuthToken = request.headers.get('Authorization')
+        user = Token.objects.get(key = requestAuthToken[6:]).user
+
         bathroom = Bathrooms.objects.get(id = bathroom_id)
 
-        day = DayAvailable.objects.get(bathroom_id = bathroom, week_day = week_day)
-        timeSlot = TimesAvailable.objects.create(week_day = day, open_time = open_time, close_time = close_time)
+        if(bathroom.address_id.user.username == user.username):
+            day = DayAvailable.objects.get(bathroom_id = bathroom, week_day = week_day)
+            timeSlot = TimesAvailable.objects.create(week_day = day, open_time = open_time, close_time = close_time)
 
-        data['bathroom_id'] = bathroom_id
-        data['week_day'] = week_day
-        data['open_time'] = str(open_time)
-        data['close_time'] = str(close_time)
+            data['bathroom_id'] = bathroom_id
+            data['week_day'] = week_day
+            data['open_time'] = str(open_time)
+            data['close_time'] = str(close_time)
 
-        return JsonResponse(data, safe = False)
+            return JsonResponse(data, safe = False)
+        else:
+            return JsonResponse("You must own the bathroom to create an availability. How did you get here?", safe = False)
     except (Bathrooms.DoesNotExist, DayAvailable.DoesNotExist) as e:
         return JsonResponse('Bathroom does not exist / Invalid Day')
-
-
 
     return JsonResponse('Bathroom does not exist', safe = False)
 
 @api_view(['POST'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def reserveBathroom(request): #, bathroom_id, week_day, open_time, date, how_long):
     data = {}
 
@@ -635,10 +671,7 @@ def reserveBathroom(request): #, bathroom_id, week_day, open_time, date, how_lon
     date = request.data['date']
     how_long = request.data['how_long']
 
-
-
     #return JsonResponse(request.data, safe = False)
-
 
     daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -657,19 +690,21 @@ def reserveBathroom(request): #, bathroom_id, week_day, open_time, date, how_lon
             requestAuthToken = request.headers.get('Authorization')
             user = Token.objects.get(key = requestAuthToken[6:]).user
             #user = Users.objects.get(username = username)
-        except Users.DoesNotExist:
+        except Token.DoesNotExist:
+            return JsonResponse('Invalid Token', safe = False)
+        except User.DoesNotExist:
             return JsonResponse('User does not exist', safe = False)
-
-        pricingOptions = PricingOption.objects.filter(bathroom_id = bathroom[0], timePeriod = how_long)
+            
+        
+        #pricingOptions = PricingOption.objects.filter(bathroom_id = bathroom[0], timePeriod = how_long)
         #return JsonResponse('day: ' + str(day.count()) + ' price: ' + str(pricingOptions.count()), safe = False)
         #Checks to see if the day is available for the select bathroom and if their are pricing options listed for that bathroom.
         #If not then it prematurely returns a JsonResponse detailing the error.
-        if(day.count() != 0 and daysOfWeek[date.weekday()] == week_day and pricingOptions.count() != 0):            
+        if(day.count() != 0 and daysOfWeek[date.weekday()] == week_day):# and pricingOptions.count() != 0):            
             #Get a timeslot if there is one available.                        
             reservedTime = TimesAvailable.objects.filter(week_day = day[0], open_time = open_time)
-            
             #checks if the requested time of day is within the available bathroom hours.
-            if(reservedTime.count() != 0 and date.time() < reservedTime[0].close_time and date.time() >= reservedTime[0].open_time):
+            if(reservedTime.count() > 0 and date.time() < reservedTime[0].close_time and date.time() >= reservedTime[0].open_time):
                 #return JsonResponse('Here', safe = False)
                 #Checks to see if time slot does not overlap with others. If it does not overlap it creates a schedules time for a user at the requested bathroom.
                 min = (how_long.hour * 60) + how_long.minute
@@ -706,30 +741,26 @@ def reserveBathroom(request): #, bathroom_id, week_day, open_time, date, how_lon
 
                 return JsonResponse('Time slot is taken', safe = False)
             else:
-                return JsonResponse('Time is unavailable ' + str(reservedTime[0].open_time), safe = False)
+                return JsonResponse('Time is unavailable', safe = False)
 
-    return JsonResponse('bathroom does not exist', safe = False)
+    return JsonResponse('Bathroom does not exist or pricing option does not exist', safe = False)
 
+@api_view(['GET'])
+#@permission_classes((IsAuthenticated,))
+@throttle_classes([AnonRateThrottle])
 def availabilityForBathrooms(request, bathroom_id):
     try:
         b = Bathrooms.objects.get(id = bathroom_id)
 
-        if request.method == 'GET':
-            days = DayAvailable.objects.filter(bathroom_id = b)
-            serializer = DayAvailable_Serializer(days, many=True)
-            return JsonResponse(serializer.data, safe=False)
-
-        elif request.method == 'POST':
-            data = JSONParser().parse(request)
-            serializer = DayAvailable_Serializer(data=data)
-            if serializer.is_valid():
-                serializer.save()
-                return JsonResponse(serializer.data, status=201)
-            return JsonResponse(serializer.errors, status=400)
+        days = DayAvailable.objects.filter(bathroom_id = b)
+        serializer = DayAvailable_Serializer(days, many=True)
+        return JsonResponse(serializer.data, safe=False)
     except Bathrooms.DoesNotExist:
         return JsonResponse('bathroom does not exist', safe=False)
 
-
+@api_view(['GET'])
+#@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def SchedulerAPI(request):
     if request.method == 'GET':
         schedule = Scheduler.objects.all()
@@ -744,6 +775,9 @@ def SchedulerAPI(request):
             return JsonResponse(serializer.data, status=201)
         return JsonResponse(serializer.errors, status=400)
 
+@api_view(['GET'])
+#@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def getAppointmentsForBathroom(request, bathroom_id):
     try:
         bathroom = Bathrooms.objects.get(id = bathroom_id)
@@ -756,6 +790,9 @@ def getAppointmentsForBathroom(request, bathroom_id):
     except Bathrooms.DoesNotExist:
         return JsonResponse("Bathroom or Schedule does not exist", status=400)
 
+@api_view(['POST'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
 def createBathroomPricingOption(request, bathroom_id, how_long, amount):
     #Makes sure that the bathroom is owned by the user with the current auth token in the request header so that
     #other users can't create pricing options for bathrooms they don't own
@@ -779,6 +816,8 @@ def createBathroomPricingOption(request, bathroom_id, how_long, amount):
     return JsonResponse('bathroom does not exist', safe = False)
 
 @api_view(['POST'])
+#@permission_classes((IsAuthenticated,))
+@throttle_classes([AnonRateThrottle])
 def custom_login(request):
     user = None
     username = None
@@ -816,18 +855,232 @@ def custom_login(request):
         except:
             return JsonResponse("No user found", safe = False)
 
-@api_view(['GET',]) 
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,)) 
+@throttle_classes([UserRateThrottle])
 def getAddressFromToken(request):
     try:
         requestAuthToken = request.headers.get('Authorization')
         user = Token.objects.get(key = requestAuthToken[6:]).user
 
         addresses = Addresses.objects.filter(user = user)
-
         serializer = Addresses_Serializer(addresses, many = True)
+
         return JsonResponse(serializer.data, safe = False)
+        
     except Users.DoesNotExist:
         return JsonResponse("No user found", safe = False)
-    except Addresses.DoesNotExist:
-        return JsonResponse("No Addresses for User", safe = False)
+    except Token.DoesNotExist:
+        return JsonResponse("Invalid Token", safe = False)
+    
+    return JsonResponse("No Addresses for User", safe = False)
 
+#Model Updates
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
+def UpdateAddress(request):
+    data = {}
+    address_id = int(request.data['id'])
+
+    try:
+        requestAuthToken = request.headers.get('Authorization')
+        user = Token.objects.get(key = requestAuthToken[6:]).user
+    
+        for key in request.data:
+            if(key != 'id'):
+               data[key] = request.data[key]
+
+        updateThis = Addresses.objects.filter(id = address_id)
+
+        if(updateThis[0].user.username == user.username):
+            updateThis.update(**data)
+            a = Addresses.objects.get(id = address_id)
+            serializer = Addresses_Serializer(a, many = False)
+
+            return JsonResponse(serializer.data, safe = False)
+
+    except Token.DoesNotExist:
+        return JsonResponse("Invalid Token", safe = False)
+
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
+def UpdateUser(request):
+    data = {}
+
+    try:
+        requestAuthToken = request.headers.get('Authorization')
+        tokenUser = Token.objects.get(key = requestAuthToken[6:]).user
+    
+        for key in request.data:
+            if(key == 'password'):
+               return JsonResponse("Cannot change password here!", safe = False)
+            if (key == 'username'):
+                return JsonResponse("Cannot change username here!", safe = False)
+
+            if (key == 'first_name'):
+                tokenUser.first_name = request.data[key]
+            if (key == 'last_name'):
+                tokenUser.last_name = request.data[key]
+            if (key == 'personalEmail'):
+                tokenUser.personalEmail = request.data[key]
+            if (key == 'home_address'):
+                tokenUser.home_address = request.data[key]
+            if (key == 'user_image'):
+                tokenUser.user_image = request.FILES['user_image']
+                    
+        tokenUser.save()
+        serializer = Users_Serializer(tokenUser, many = False)
+
+        return JsonResponse(serializer.data, safe = False)
+    except Token.DoesNotExist:
+        return JsonResponse("Invalid Token", safe = False)
+
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
+def UpdateBathroom(request):
+    data = {}
+    bathroom_id = int(request.data['id'])
+
+    try:
+        requestAuthToken = request.headers.get('Authorization')
+        user = Token.objects.get(key = requestAuthToken[6:]).user
+        b = Bathrooms.objects.get(id = bathroom_id)
+    
+        for key in request.data:
+            if(key != 'id' and key != 'image1' and key != 'image2' and key != 'image3' and key != 'image4'):
+               data[key] = request.data[key]
+
+            if(key == 'image1'):
+                b.image1 = request.FILES.get('image1')
+            if(key == 'image2'):
+                b.image2 = request.FILES.get('image2')
+            if(key == 'image3'):
+                b.image3 = request.FILES.get('image3')
+            if(key == 'image4'):
+                b.image4 = request.FILES.get('image4')
+        
+        b.save()
+
+        updateThis = Bathrooms.objects.filter(id = bathroom_id)
+
+        if(updateThis[0].address_id.user.username == user.username):
+            updateThis.update(**data)
+   
+            serializer = Bathrooms_Serializer(b, many = False)
+
+            return JsonResponse(serializer.data, safe = False)
+
+    except Token.DoesNotExist:
+        return JsonResponse("Invalid Token", safe = False)
+
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
+def UpdateTimeSlot(request):
+    data = {}
+    bathroom_id = int(request.data['bathroom_id'])
+    week_day = request.data['week_day']
+    old_open_time = datetime.strptime(request.data['old_open_time'], '%H:%M:%S')
+
+    try:
+        requestAuthToken = request.headers.get('Authorization')
+        user = Token.objects.get(key = requestAuthToken[6:]).user
+    
+        for key in request.data:
+            if(key != 'bathroom_id' and key != 'old_open_time' and key != 'week_day'):
+                data[key] = request.data[key]
+                if(key == 'open_time'):
+                    data[key] = datetime.strptime(request.data[key], '%H:%M:%S')
+                if(key == 'close_time'):
+                    data[key] = datetime.strptime(request.data[key], '%H:%M:%S')
+
+        
+        b = Bathrooms.objects.filter(id = bathroom_id)
+        day = DayAvailable.objects.get(week_day = week_day, bathroom_id = b[0])
+
+        if(b[0].address_id.user.username == user.username):
+            updateThis = TimesAvailable.objects.filter(week_day = day, open_time = old_open_time)
+            updateThis.update(**data)
+            
+            timeSlot = TimesAvailable.objects.filter(week_day = day, open_time = data['open_time'])
+            serializer = TimesAvailable_Serializer(timeSlot[0], many = False)
+
+            return JsonResponse(serializer.data, safe = False)
+
+    except Token.DoesNotExist:
+        return JsonResponse("Invalid Token", safe = False)
+
+#Model Deletes
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
+def DeleteAddress(request):
+    try:
+        authToken = request.headers.get('Authorization')[6:]
+        user = Token.objects.get(key = authToken).user
+
+        a = Addresses.objects.get(id = int(request.data['id']), user = user)
+        a.delete()
+
+        return JsonResponse("Address successfully removed", safe = False)
+    except Addresses.DoesNotExist:
+        return JsonResponse("Address does not exist", safe = False)
+    except Token.DoesNotExist:
+        return JsonResponse("Invalid Token", safe = False)
+
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
+def DeleteBathroom(request):
+    try:
+        authToken = request.headers.get('Authorization')[6:]
+        user = Token.objects.get(key = authToken).user
+
+        bathroom = Bathrooms.objects.get(id = int(request.data['id']))
+
+        #Check to see if the user owns the bathroom
+        if(user.username == bathroom.address_id.user.username):
+            bathroom.delete()
+            return JsonResponse("Bathroom successfully removed", safe = False)
+        else:
+              return JsonResponse("How did you get here? You do not own this bathroom!", safe = False)
+    except Token.DoesNotExist:
+        return JsonResponse("Invalid Token", safe = False)
+    except Addresses.DoesNotExist:
+        return JsonResponse("Address does not exist", safe = False)
+    except Bathrooms.DoesNotExist:
+        return JsonResponse("Bathroom does not exist", safe = False)
+
+@api_view(['GET'])
+@permission_classes((IsAuthenticated,))
+@throttle_classes([UserRateThrottle])
+def DeleteTimeSlot(request): #Request data requires week_day, bathroom_id, and open_time in HH:MM:SS format
+    try:
+        authToken = request.headers.get('Authorization')[6:]
+        user = Token.objects.get(key = authToken).user
+
+        bathroom = Bathrooms.objects.get(id = int(request.data['bathroom_id']))
+
+        #Check to see if the user owns the bathroom
+        if(user.username == bathroom.address_id.user.username):
+            #Need to get weekday and associated opening time
+            day = DayAvailable.objects.get(bathroom_id = bathroom, week_day = request.data['week_day'])
+            times = TimesAvailable.objects.filter(week_day = day, open_time = datetime.strptime(request.data['open_time'], '%H:%M:%S'))
+            times.delete()
+
+            return JsonResponse("Time slot successfully removed", safe = False)
+        else:
+              return JsonResponse("How did you get here? You do not own this bathroom!", safe = False)
+
+    except Token.DoesNotExist:
+        return JsonResponse("Invalid Token", safe = False)
+    except Bathrooms.DoesNotExist:
+        return JsonResponse("Bathroom does not exist", safe = False)
+    except TimesAvailable.DoesNotExist:
+        return JsonResponse("Time slot does not exist", safe = False)
+    except DayAvailable.DoesNotExist:
+        return JsonResponse("For week_day, your options are Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday.", safe = False)
+    

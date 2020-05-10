@@ -23,6 +23,7 @@ class Users(AbstractBaseUser):
     home_state = models.CharField(max_length = 2, null = False, blank = True, default = '')
     home_city = models.CharField(max_length = 45, null = False, blank = True, default = '')
     home_zip = models.IntegerField(null = False, blank = True, default = 0000)
+    user_image = models.ImageField(null = True, blank = True, default = 'user_images/default_user_image.png', upload_to = 'user_images/')
 
     date_joined = models.DateTimeField(auto_now_add = True)
     last_login = models.DateTimeField(default = timezone.now)
@@ -76,10 +77,10 @@ class Bathrooms(models.Model):
     num_of_toilets = models.IntegerField(default = 0)
 
     #Bathroom Images
-    image1 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/%Y/%m/%d/')
-    image2 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/%Y/%m/%d/')
-    image3 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/%Y/%m/%d/')
-    image4 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/%Y/%m/%d/')
+    image1 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/')
+    image2 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/')
+    image3 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/')
+    image4 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/')
 
 class PricingOption(models.Model):
     bathroom_id = models.ForeignKey(Bathrooms, on_delete = models.CASCADE, related_name = "pricing")
@@ -98,7 +99,7 @@ class DayAvailable(models.Model):
     week_day = models.CharField(max_length = 11, blank = True, unique = False)
 
 class TimesAvailable(models.Model):
-    week_day = models.ForeignKey(DayAvailable, on_delete = models.CASCADE, related_name = 'timesAvailable', null = True)
+    week_day = models.OneToOneField(DayAvailable, on_delete = models.CASCADE, related_name = 'timesAvailable', null = True)
     #bathroom_id = models.ForeignKey(Bathrooms, on_delete = models.CASCADE, related_name = "timesAvailable")
     #week_day = models.CharField(max_length = 11, blank = True)
     open_time = models.TimeField(blank = True, null = True)

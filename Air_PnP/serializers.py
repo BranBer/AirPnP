@@ -16,7 +16,7 @@ class Invoices_Serializer(serializers.ModelSerializer):
 class Ratings_Serializer(serializers.ModelSerializer):
     class Meta:
         model = Ratings
-        fields = ['user', 'bathroom_id','score','title','description']
+        fields = ['user', 'bathroom_id', 'score', 'title', 'description']
 
 class TimesAvailable_Serializer(serializers.ModelSerializer):
     class Meta:
@@ -24,7 +24,7 @@ class TimesAvailable_Serializer(serializers.ModelSerializer):
         fields = ['week_day', 'open_time', 'close_time', 'users']
 
 class DayAvailable_Serializer(serializers.ModelSerializer):
-    timesAvailable = TimesAvailable_Serializer(many = True, read_only = True)
+    timesAvailable = TimesAvailable_Serializer(many = False, read_only = True)
     class Meta:
         model = DayAvailable
         fields = ['bathroom_id', 'week_day', 'timesAvailable']
@@ -34,6 +34,11 @@ class PricingOption_Serializer(serializers.ModelSerializer):
         model = PricingOption
         fields = ['bathroom_id', 'timePeriod', 'amount']
 
+class BathroomPost_Serializer(serializers.ModelSerializer):
+    class Meta:
+        model = Bathrooms
+        fields = '__all__'
+
 class Bathrooms_Serializer(serializers.ModelSerializer):
     ratings = Ratings_Serializer(many = True, read_only = True)
     #pricing = PricingOption_Serializer(many = True, read_only = True)
@@ -42,8 +47,8 @@ class Bathrooms_Serializer(serializers.ModelSerializer):
     class Meta:
         model = Bathrooms
         depth = 1
-        fields = ['id', 'address_id', 'has_shower', 'has_bath', 'has_sink', 'has_fem_products', 'num_of_toilets', 'ratings', 'image1', 'image2', 'image3', 'image4']
-
+        fields = ['id', 'address_id', 'has_shower', 'has_bath', 'has_sink', 'has_fem_products', 'num_of_toilets', 'has_toilet_paper', 'ratings', 'image1', 'image2', 'image3', 'image4']
+    
 class Scheduler_Serializer(serializers.ModelSerializer):
     class Meta:
         model = Scheduler
@@ -59,14 +64,14 @@ class Users_Serializer(serializers.ModelSerializer):
     addresses = Addresses_Serializer(many = True, read_only = True)
     class Meta:
         model = Users
-        fields = ['username', 'personalEmail', 'first_name', 'last_name', 'home_address', 'addresses']
+        fields = ['username', 'personalEmail', 'user_image', 'first_name', 'last_name', 'home_address', 'addresses']
 
 class Registration_Serializer(serializers.ModelSerializer):
     password2 = serializers.CharField(style = {'input_type': 'password'}, write_only = True)
     
     class Meta:
         model = Users
-        fields = ['username', 'personalEmail', 'first_name', 'last_name', 'home_address', 'home_city', 'home_state', 'home_zip', 'password', 'password2']
+        fields = ['username', 'personalEmail', 'first_name', 'user_image', 'last_name', 'home_address', 'home_city', 'home_state', 'home_zip', 'password', 'password2']
         extra_kwargs = {
             'password': {'write_only': True}
         }
@@ -80,7 +85,8 @@ class Registration_Serializer(serializers.ModelSerializer):
             home_address = self.validated_data['home_address'],
             home_state = self.validated_data['home_state'],
             home_city = self.validated_data['home_city'],
-            home_zip = self.validated_data['home_zip'],
+            home_zip = int(self.validated_data['home_zip']),
+            user_image = self.validated_data['user_image'],
         )
 
         password = self.validated_data['password']
