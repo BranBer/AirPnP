@@ -86,7 +86,6 @@ class Registration_Serializer(serializers.ModelSerializer):
             home_state = self.validated_data['home_state'],
             home_city = self.validated_data['home_city'],
             home_zip = int(self.validated_data['home_zip']),
-            user_image = self.validated_data['user_image'],
         )
 
         password = self.validated_data['password']
