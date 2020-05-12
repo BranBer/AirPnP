@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.contrib.auth.models import AbstractBaseUser
 
 from django.conf import settings
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_init
 from django.dispatch import receiver
 from rest_framework.authtoken.models import Token
 
@@ -76,6 +76,8 @@ class Bathrooms(models.Model):
     has_toilet_paper = models.BooleanField(null = True)
     num_of_toilets = models.IntegerField(default = 0)
 
+    post_called = models.BooleanField(default = False, blank = True)
+
     #Bathroom Images
     image1 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/')
     image2 = models.ImageField(null = True, blank = True, upload_to = 'bathroom_images/')
@@ -131,11 +133,18 @@ def create_auth_token(sender, instance = None, created = False, **kwargs):
 
 @receiver(post_save, sender=Bathrooms, dispatch_uid="create_days_of_week")
 def create_days_for_bathroom(sender, instance, **kwargs):
-    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Sunday')
-    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Monday')
-    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Tuesday')
-    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Wednesday')
-    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Thursday')
-    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Friday')
-    DayAvailable.objects.create(bathroom_id = instance, week_day = 'Saturday')
+    bathroom = Bathrooms.objects.get(id = instance.id)
+
+    if(bathroom.post_called == False):
+        DayAvailable.objects.create(bathroom_id = instance, week_day = 'Sunday')
+        DayAvailable.objects.create(bathroom_id = instance, week_day = 'Monday')
+        DayAvailable.objects.create(bathroom_id = instance, week_day = 'Tuesday')
+        DayAvailable.objects.create(bathroom_id = instance, week_day = 'Wednesday')
+        DayAvailable.objects.create(bathroom_id = instance, week_day = 'Thursday')
+        DayAvailable.objects.create(bathroom_id = instance, week_day = 'Friday')
+        DayAvailable.objects.create(bathroom_id = instance, week_day = 'Saturday')
+        bathroom.post_called = True
+        
+
+    
     

@@ -207,12 +207,14 @@ def Bathrooms_Post_API(request):
 
         address = Addresses.objects.get(id = int(request.data['address_id']))
     
-        if bathroom.is_valid() and address.user.username == user.username:
-            bathroom.save()
-            return JsonResponse(bathroom.data, safe = False)
+        if bathroom.is_valid():
+            if address.user.username == user.username:
+                bathroom.save()
+                return JsonResponse(bathroom.data, safe = False)
+            else:
+                return JsonResponse("You must own the address to create a bathroom in it!", safe = False)
         else:
-            return JsonResponse("You must own the address to create a bathroom in it!", safe = False)
-
+            return JsonResponse("Invalid data", safe = False)
     except Token.DoesNotExist:
         return JsonResponse("User does not exist", safe = False)
     except Addresses.DoesNotExist:
